@@ -1,4 +1,6 @@
 results/raw/
+results/race/
+results/race-multi/
 results/runs.csv
 results/metrics.csv
 repos/

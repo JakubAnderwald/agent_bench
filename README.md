@@ -116,7 +116,7 @@ Layout:
 +------------------------------------------------------------------+
 ```
 
-The two Claude panes show parsed activity (one line per tool call / text turn, with elapsed seconds). The Copilot pane shows raw stdout — its log format isn't Anthropic-stream-json, so we don't pretty-print it.
+All three panes show parsed activity (one line per tool call / reasoning / text turn, with elapsed seconds). The Claude panes use `lib/pretty-claude.py` to render Anthropic stream-json; the Copilot pane uses `lib/pretty-copilot.py` to render Copilot's native JSONL schema (different event types, but rendered in the same `[ Ns] KIND  name  summary` format for visual parity).
 
 **Recording:** start QuickTime Player → Cmd-Shift-5 → select the tmux window → click Record → then press ENTER in the driver pane. For crisper text output that replays in a terminal, use `asciinema rec demo.cast` in place of QuickTime.
 

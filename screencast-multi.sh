@@ -33,22 +33,23 @@ mkdir -p "$RACEDIR/claude-max" "$RACEDIR/claude-foundry" "$RACEDIR/copilot"
 : > "$RACEDIR/copilot/stream.jsonl"
 
 SESSION="bench-multi-${stamp}"
-PRETTY="$PWD/lib/pretty-claude.py"
+PRETTY_CLAUDE="$PWD/lib/pretty-claude.py"
+PRETTY_COPILOT="$PWD/lib/pretty-copilot.py"
 CASES_STR="${cases[*]}"
 
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 
 # --- pane 0: CLAUDE-MAX tail ---
 tmux new-session -d -s "$SESSION" -x 240 -y 64 -c "$PWD" \
-  "tail -F '$RACEDIR/claude-max/stream.jsonl' | python3 -u '$PRETTY'"
+  "tail -F '$RACEDIR/claude-max/stream.jsonl' | python3 -u '$PRETTY_CLAUDE'"
 
 # --- pane 1: CLAUDE-FOUNDRY tail ---
 tmux split-window -h -t "$SESSION" -c "$PWD" \
-  "tail -F '$RACEDIR/claude-foundry/stream.jsonl' | python3 -u '$PRETTY'"
+  "tail -F '$RACEDIR/claude-foundry/stream.jsonl' | python3 -u '$PRETTY_CLAUDE'"
 
 # --- pane 2: COPILOT tail ---
 tmux split-window -h -t "$SESSION" -c "$PWD" \
-  "tail -F '$RACEDIR/copilot/stream.jsonl'"
+  "tail -F '$RACEDIR/copilot/stream.jsonl' | python3 -u '$PRETTY_COPILOT'"
 
 tmux select-layout -t "$SESSION" even-horizontal
 
