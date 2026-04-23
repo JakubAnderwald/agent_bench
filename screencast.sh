@@ -36,7 +36,7 @@ RACEDIR="$PWD/results/race/${case_id}-${stamp}"
 mkdir -p "$RACEDIR/claude-max" "$RACEDIR/claude-foundry" "$RACEDIR/copilot"
 : > "$RACEDIR/claude-max/stream.jsonl"
 : > "$RACEDIR/claude-foundry/stream.jsonl"
-: > "$RACEDIR/copilot/stream.log"
+: > "$RACEDIR/copilot/stream.jsonl"
 
 SESSION="bench-${case_id}-${stamp}"
 PRETTY="$PWD/lib/pretty-claude.py"
@@ -51,9 +51,9 @@ tmux new-session -d -s "$SESSION" -x 240 -y 64 -c "$PWD" \
 tmux split-window -h -t "$SESSION" -c "$PWD" \
   "tail -F '$RACEDIR/claude-foundry/stream.jsonl' | python3 -u '$PRETTY'"
 
-# --- pane 2: COPILOT tail (raw, no stream-json) ---
+# --- pane 2: COPILOT tail (raw JSONL, different schema from Claude) ---
 tmux split-window -h -t "$SESSION" -c "$PWD" \
-  "tail -F '$RACEDIR/copilot/stream.log'"
+  "tail -F '$RACEDIR/copilot/stream.jsonl'"
 
 tmux select-layout -t "$SESSION" even-horizontal
 

@@ -59,9 +59,12 @@ run_one() {
     success=0
   fi
 
-  turns=$(grep -c '"type":"assistant"' "$outdir/stream.jsonl" 2>/dev/null || echo 0)
-  tools=$(grep -c '"type":"tool_use"' "$outdir/stream.jsonl" 2>/dev/null || echo 0)
-  # copilot format differs — leave as 0 if agent didn't produce stream.jsonl
+  # Count turns and tool calls across both Claude (stream-json) and Copilot
+  # (--output-format json) vocabularies. `report_intent` is Copilot's meta
+  # narration tool — filter it out so tool counts stay comparable to Claude.
+  turns=$(grep -cE '"type":"(assistant|assistant\.turn_end)"' "$outdir/stream.jsonl" 2>/dev/null || true)
+  tools=$(grep -E '"type":"(tool_use|tool\.execution_start)"' "$outdir/stream.jsonl" 2>/dev/null \
+          | grep -vc '"toolName":"report_intent"' || true)
   [ -z "$turns" ] && turns=0
   [ -z "$tools" ] && tools=0
 

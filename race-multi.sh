@@ -36,11 +36,7 @@ run_agent() {
   local outdir="$RACEDIR/$agent"
   mkdir -p "$outdir"
   local stream
-  if [ "$agent" = "copilot" ]; then
-    stream="$outdir/stream.log"
-  else
-    stream="$outdir/stream.jsonl"
-  fi
+  stream="$outdir/stream.jsonl"
   : > "$stream"
   : > "$outdir/summary.csv"
 
@@ -49,11 +45,7 @@ run_agent() {
     workdir=$(mktemp -d -t "racem-${case_id}-${agent}-XXXXXX")
     bash "$BENCH_DIR/cases/${case_id}/setup.sh" "$workdir" >>"$outdir/setup.log" 2>&1
 
-    if [ "$agent" = "copilot" ]; then
-      printf '\n=== START %s ===\n' "$case_id" >> "$stream"
-    else
-      printf '{"type":"_bench_case","case":"%s"}\n' "$case_id" >> "$stream"
-    fi
+    printf '{"type":"_bench_case","case":"%s"}\n' "$case_id" >> "$stream"
 
     prompt=$(cat "$BENCH_DIR/cases/${case_id}/prompt.txt")
     t0=$(now)

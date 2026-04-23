@@ -30,7 +30,7 @@ RACEDIR="$PWD/results/race-multi/${stamp}"
 mkdir -p "$RACEDIR/claude-max" "$RACEDIR/claude-foundry" "$RACEDIR/copilot"
 : > "$RACEDIR/claude-max/stream.jsonl"
 : > "$RACEDIR/claude-foundry/stream.jsonl"
-: > "$RACEDIR/copilot/stream.log"
+: > "$RACEDIR/copilot/stream.jsonl"
 
 SESSION="bench-multi-${stamp}"
 PRETTY="$PWD/lib/pretty-claude.py"
@@ -48,7 +48,7 @@ tmux split-window -h -t "$SESSION" -c "$PWD" \
 
 # --- pane 2: COPILOT tail ---
 tmux split-window -h -t "$SESSION" -c "$PWD" \
-  "tail -F '$RACEDIR/copilot/stream.log'"
+  "tail -F '$RACEDIR/copilot/stream.jsonl'"
 
 tmux select-layout -t "$SESSION" even-horizontal
 

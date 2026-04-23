@@ -143,7 +143,7 @@ Skip tc5/tc6 on camera — tc5's pip check is boring, tc6's output is a wall of 
 - **Prompt caching** makes trial 2+ faster on Claude Code. `bench.sh` rotates agent order per trial to distribute that warmup across providers; the median of 3 trials is what you report.
 - **Rate limits on Max plan** can spike wall times 10×. Run off-peak (EU morning = US night) if you see outliers.
 - **Foundry region matters** — a US endpoint from an EU machine adds ~100 ms per tool-call round trip, which compounds across 20+ turns.
-- **Copilot CLI** doesn't produce Anthropic-style `stream-json`, so its `turns` / `tool_calls` columns will read 0. Wall time and success/fail are still accurate, which is what the headline compares.
+- **Copilot CLI** uses `--output-format json` (JSONL); `bench.sh` counts `assistant.turn_end` / `tool.execution_start` events and filters out Copilot's synthetic `report_intent` meta-tool so `turns` / `tool_calls` are comparable to Claude's stream-json (within a factor of ~1; same granularity).
 - **Permissions are fully bypassed** — `--dangerously-skip-permissions` on Claude, `--yolo` on Copilot. Without these, the agent pauses for approvals on any shell command (e.g. `pytest` in tc5) and you're timing your own reaction.
 - **tc2 verify** accepts the full-height Tailwind class (`min-h-screen`, `h-dvh`, etc.) in either `app/page.tsx` or `app/layout.tsx` — both are valid centering patterns. Centering classes themselves (`items-center`, `justify-center`, `place-items-center`) must still be in `app/page.tsx` alongside the heading.
 
