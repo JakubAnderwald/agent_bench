@@ -1,0 +1,7 @@
+results/raw/
+results/runs.csv
+repos/
+templates/*.tar.gz
+workdirs/
+*.log
+.DS_Store

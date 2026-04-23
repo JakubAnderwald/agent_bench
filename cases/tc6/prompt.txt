@@ -1,0 +1,10 @@
+Open `lib/router/index.js`. List every PUBLIC method attached to the Router prototype (`proto.*` assignments). A method is public if its name does NOT start with an underscore.
+
+For each method, give:
+  - the method name
+  - the file:line where it is assigned
+  - a one-sentence description of what it does, based on the implementation.
+
+Do not list the HTTP-verb methods individually (they are added in a loop from `methods`); instead, note them as a single entry: "HTTP verb methods (get, post, put, ...) — route handler registrars generated from the `methods` list".
+
+Do not modify any files.

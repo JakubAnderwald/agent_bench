@@ -1,0 +1,7 @@
+Explain how retry logic works in this library. Answer these three questions with file:line citations from the current repo:
+
+1. Which source file implements the retry loop, and which function is the entry point?
+2. What is the backoff formula (include any jitter/cap)?
+3. Which options on the `retry` config object control the behaviour, and what are their defaults?
+
+Keep the answer under 200 words. Do not modify any files.

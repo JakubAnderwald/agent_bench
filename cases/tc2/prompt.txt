@@ -1,0 +1,5 @@
+Modify the Next.js homepage at app/page.tsx so that:
+1. The visible page heading text is exactly: Speed Test Demo
+2. That heading is centered both horizontally and vertically in the viewport.
+
+Use only Tailwind utility classes (no custom CSS). Keep the file compiling — do not break the existing imports or layout shell. You do not need to run the build.

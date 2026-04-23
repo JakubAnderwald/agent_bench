@@ -1,0 +1,7 @@
+Three files in this repo inline-format a date with `new Date(x).toLocaleDateString("en-US", {...})`:
+
+- components/note-card.tsx
+- components/activity-row.tsx
+- app/profile/page.tsx
+
+Refactor: extract the formatting into a single shared helper at `lib/format.ts` that exports `formatDate(input: string | Date): string` and produces the same output (`en-US`, year numeric, month short, day numeric). Update all three files to call `formatDate` from `lib/format.ts`. Use a relative import path. Do not change the rendered output.

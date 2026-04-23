@@ -1,0 +1,1 @@
+Run `npm test` in this repo. Tests fail. Find and fix the bug in `src/` so all tests pass. Do not modify anything under `test/`. After your fix, run `npm test` once more to confirm it passes.

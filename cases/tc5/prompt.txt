@@ -1,0 +1,13 @@
+This is a FastAPI project. A virtualenv already exists at `.venv/` with fastapi, httpx and pytest installed. Run tests with `.venv/bin/pytest`.
+
+Add a `GET /health` endpoint to `app/main.py` that returns JSON:
+  { "status": "ok", "uptime_seconds": <float> }
+where `uptime_seconds` is the time in seconds since the FastAPI process started (recorded at module import time is fine).
+
+Add a test in `tests/test_health.py` that:
+  - hits GET /health with `TestClient(app)`
+  - asserts status code 200
+  - asserts response["status"] == "ok"
+  - asserts response["uptime_seconds"] is a number >= 0
+
+Run `.venv/bin/pytest` to confirm all tests (old and new) pass.
