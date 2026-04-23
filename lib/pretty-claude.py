@@ -57,6 +57,9 @@ def main():
                 print(f"[{t}] DONE  ({dur:.1f}s)", flush=True)
             else:
                 print(f"[{t}] FAIL  {sub}", flush=True)
+        elif typ == "_bench_trial":
+            trial = d.get("trial", "?")
+            print(f"[{t}] ==== TRIAL {trial} ====", flush=True)
         elif typ == "_bench_case":
             case = d.get("case", "?")
             print(f"[{t}] ---- CASE {case} ----", flush=True)

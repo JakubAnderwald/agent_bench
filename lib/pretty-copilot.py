@@ -45,7 +45,10 @@ def main():
         t = elapsed()
         data = d.get("data") or {}
 
-        if typ == "_bench_case":
+        if typ == "_bench_trial":
+            trial = d.get("trial", "?")
+            print(f"[{t}] ==== TRIAL {trial} ====", flush=True)
+        elif typ == "_bench_case":
             case = d.get("case", "?")
             print(f"[{t}] ---- CASE {case} ----", flush=True)
         elif typ == "_bench_case_end":

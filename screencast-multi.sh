@@ -8,8 +8,12 @@
 #   |                   DRIVER (you type here)               |
 #   +--------------------------------------------------------+
 #
-# usage: ./screencast-multi.sh               # tc1 tc2 tc3 tc4
+# usage: ./screencast-multi.sh               # tc1 tc2 tc3 tc4, 1 trial
 #        ./screencast-multi.sh tc1 tc2 tc3   # custom case list
+#        TRIALS=3 ./screencast-multi.sh      # loop the grid 3 times
+#
+# After the race finishes, metrics.sh auto-runs on the race dir and prints
+# wall-time / tok-per-second / cache-hit / cost tables in the driver pane.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -25,6 +29,7 @@ command -v python3 >/dev/null || { echo "python3 required" >&2; exit 1; }
 : "${ANTHROPIC_FOUNDRY_RESOURCE:?ANTHROPIC_FOUNDRY_RESOURCE not set}"
 : "${ANTHROPIC_FOUNDRY_API_KEY:?ANTHROPIC_FOUNDRY_API_KEY not set}"
 
+TRIALS=${TRIALS:-1}
 stamp=$(date +%Y%m%d-%H%M%S)
 RACEDIR="$PWD/results/race-multi/${stamp}"
 mkdir -p "$RACEDIR/claude-max" "$RACEDIR/claude-foundry" "$RACEDIR/copilot"
@@ -55,11 +60,13 @@ tmux select-layout -t "$SESSION" even-horizontal
 
 # --- pane 3: DRIVER ---
 tmux split-window -v -f -l "30%" -t "$SESSION" -c "$PWD" \
-  "printf '\nCASES: %s\n' '$CASES_STR'; \
+  "printf '\nCASES:  %s\nTRIALS: %s\n' '$CASES_STR' '$TRIALS'; \
    printf '\n>>> press ENTER to start the race (start recording first!) '; \
    read; \
    echo; echo '=== GO ==='; \
-   RACEDIR='$RACEDIR' ./race-multi.sh $CASES_STR; \
+   RACEDIR='$RACEDIR' TRIALS='$TRIALS' ./race-multi.sh $CASES_STR; \
+   echo; echo '=== metrics ==='; \
+   ./metrics.sh '$RACEDIR'; \
    echo; echo '>>> press ENTER to close'; read; \
    tmux kill-session -t $SESSION"
 

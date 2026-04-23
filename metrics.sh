@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
-# Parse results/raw/**/stream.jsonl into results/metrics.csv and print a
-# rich summary: median output tok/s, cache-hit %, tool-time %, $/run.
+# Parse <root>/raw/**/stream.jsonl into <root>/metrics.csv and print a rich
+# summary: median output tok/s, cache-hit %, tool-time %, $/run.
 #
-# Safe to re-run; overwrites results/metrics.csv from the existing raw streams.
+# Defaults to `results/` (bench.sh output). Pass a different root to point at a
+# screencast race dir, e.g. `./metrics.sh results/race-multi/20260423-220000`.
+#
+# Safe to re-run; overwrites <root>/metrics.csv from the existing raw streams.
 # Token/cost columns are only populated for the two claude-* agents; copilot
 # streams don't expose token counts.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-RAW=results/raw
-RUNS=results/runs.csv
-OUT=results/metrics.csv
+ROOT="${1:-results}"
+RAW="$ROOT/raw"
+RUNS="$ROOT/runs.csv"
+OUT="$ROOT/metrics.csv"
 
-[ -d "$RAW" ] || { echo "no $RAW yet; run ./bench.sh first" >&2; exit 1; }
-[ -f "$RUNS" ] || { echo "no $RUNS yet; run ./bench.sh first" >&2; exit 1; }
+[ -d "$RAW" ] || { echo "no $RAW yet (expected bench.sh- or race-multi.sh-shaped output at $ROOT)" >&2; exit 1; }
+[ -f "$RUNS" ] || { echo "no $RUNS yet (expected bench.sh- or race-multi.sh-shaped output at $ROOT)" >&2; exit 1; }
 
 python3 - "$RAW" "$RUNS" "$OUT" <<'PY'
 import csv, json, os, sys, statistics as stat

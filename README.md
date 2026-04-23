@@ -93,14 +93,28 @@ Two variants, both opening a single tmux window with three labelled agent panes 
 
 ### Multi-case: `./screencast-multi.sh [cases...]`
 
-Each agent iterates through the given case list sequentially, all three in parallel. Useful for a single take that covers the whole suite.
+Each agent iterates through the given case list sequentially, all three in parallel. Useful for a single take that covers the whole suite. Set `TRIALS` to loop the full grid multiple times (same semantics as `bench.sh`); `metrics.sh` auto-runs on the race dir when the race finishes so the driver pane ends with a full tok/s / cache / cost table.
 
 ```bash
-./screencast-multi.sh              # defaults to tc1 tc2 tc3 tc4
+./screencast-multi.sh              # defaults to tc1 tc2 tc3 tc4, TRIALS=1
 ./screencast-multi.sh tc2 tc3 tc4  # custom list
+TRIALS=3 ./screencast-multi.sh     # 3 trials — real medians (slower)
 ```
 
-Outputs go to `results/race-multi/<timestamp>/`.
+Outputs go to `results/race-multi/<timestamp>/`:
+
+- `runs.csv` — bench.sh-schema rows, one per (trial, case, agent)
+- `metrics.csv` — enriched with tokens, api_s, cache, cost
+- `raw/t<N>/<case>/<agent>/` — per-run transcripts (stream.jsonl, verify.log, etc.)
+- `<agent>/stream.jsonl` — master live stream that accumulates across the whole grid, for the tmux tail panes
+
+To regenerate the metrics table later against the same race dir:
+
+```bash
+./metrics.sh results/race-multi/<timestamp>
+```
+
+Compared to `bench.sh`: same measurement columns, but the 3 agents run concurrently (visible race) instead of sequentially. Parallel execution barely skews wall times on these workloads (LLM-bound, not CPU-bound), but for publication numbers run `./bench.sh` — it rotates agent order across trials to balance cache warmup.
 
 Layout:
 
