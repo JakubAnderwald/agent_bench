@@ -7,6 +7,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 BENCH_DIR="$PWD"
 
+# Force C numeric locale so awk/perl print `.` as decimal separator.
+# Without this, locales like de_DE write `54,47` and break CSV parsing.
+export LC_ALL=C
+
 AGENTS=(claude-max claude-foundry copilot)
 CASES=(tc1 tc2 tc3 tc4 tc5 tc6)
 TRIALS=${TRIALS:-3}

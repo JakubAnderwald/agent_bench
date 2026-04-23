@@ -1,5 +1,6 @@
 results/raw/
 results/runs.csv
+results/metrics.csv
 repos/
 templates/*.tar.gz
 workdirs/
