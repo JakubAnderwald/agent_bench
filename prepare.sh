@@ -152,9 +152,11 @@ TXT
 [pytest]
 testpaths = tests
 INI
-    # pre-install deps so per-run setup is fast
+    # pre-install deps so per-run setup is fast. --relocatable keeps
+    # the venv usable after the tarball is extracted to a different path
+    # (without it, uv bakes the build-time absolute path into every shebang).
     if command -v uv >/dev/null; then
-      uv venv .venv >/dev/null 2>&1
+      uv venv --relocatable .venv >/dev/null 2>&1
       uv pip install --python .venv/bin/python -r requirements.txt >/dev/null
     else
       python3 -m venv .venv
