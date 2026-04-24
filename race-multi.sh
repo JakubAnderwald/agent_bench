@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
 # Screencast-friendly: all 3 agents run IN PARALLEL, each iterating through
-# a trial x case grid sequentially. Two output layouts coexist:
+# a trial x case grid sequentially.
 #
-#   $RACEDIR/<agent>/stream.jsonl       # master live stream, one per agent,
-#                                         accumulates across trials+cases for
-#                                         the tmux tail panes
-#   $RACEDIR/raw/t<N>/<case>/<agent>/   # per-run transcripts, same shape as
-#     stream.jsonl                       # bench.sh writes, so metrics.sh can
-#     stdout.log                         # join the master runs.csv against
-#     stderr.log                         # per-run `result` events
-#     verify.log
-#   $RACEDIR/runs.csv                   # bench.sh-schema rows, one per run
+# Each agent writes directly to its own live master stream ($RACEDIR/<agent>/
+# stream.jsonl) — this is what the tmux panes tail. _bench_trial, _bench_case,
+# and _bench_case_end markers wrap each run so a post-race slicing step can
+# carve per-run transcripts into $RACEDIR/raw/t<N>/<case>/<agent>/ — the same
+# layout bench.sh produces, so metrics.sh can consume it unchanged.
 #
 # Set TRIALS=N (default 1) to loop the whole grid N times.
 #
@@ -22,8 +18,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 BENCH_DIR="$PWD"
 
-# Force C numeric locale so awk/perl emit `.` decimals — locales like de_DE
-# write `54,47` and break CSV parsing downstream.
+# Force C numeric locale so awk/perl emit `.` decimals.
 export LC_ALL=C
 
 cases=("$@")
@@ -42,9 +37,6 @@ stamp=$(date +%Y%m%d-%H%M%S)
 RACEDIR="${RACEDIR:-$BENCH_DIR/results/race-multi/${stamp}}"
 mkdir -p "$RACEDIR"
 
-CSV="$RACEDIR/runs.csv"
-echo "trial,case,agent,wall_s,success,turns,tool_calls" > "$CSV"
-
 now() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time()'; }
 
 echo "cases:   ${cases[*]}"
@@ -54,49 +46,36 @@ echo ""
 
 run_agent() {
   local agent="$1"
-  local master="$RACEDIR/$agent/stream.jsonl"
-  mkdir -p "$RACEDIR/$agent"
+  local outdir="$RACEDIR/$agent"
+  mkdir -p "$outdir"
+  local master="$outdir/stream.jsonl"
   : > "$master"
-  : > "$RACEDIR/$agent/summary.csv"
+  : > "$outdir/summary.csv"
+  local partial="$outdir/runs.partial.csv"
+  : > "$partial"
 
-  local trial case_id workdir prompt t0 t1 wall success turns tools status
-  local per_run_dir per_run_stream mirror_pid
+  local trial case_id workdir prompt t0 t1 wall success status
 
   for trial in $(seq 1 "$TRIALS"); do
     printf '{"type":"_bench_trial","trial":%d}\n' "$trial" >> "$master"
 
     for case_id in "${cases[@]}"; do
-      per_run_dir="$RACEDIR/raw/t${trial}/${case_id}/${agent}"
-      per_run_stream="$per_run_dir/stream.jsonl"
-      mkdir -p "$per_run_dir"
-      : > "$per_run_stream"
-
       workdir=$(mktemp -d -t "racem-${case_id}-${agent}-XXXXXX")
       bash "$BENCH_DIR/cases/${case_id}/setup.sh" "$workdir" \
-        >>"$per_run_dir/setup.log" 2>&1
+        >>"$outdir/setup.log" 2>&1
 
       printf '{"type":"_bench_case","case":"%s","trial":%d}\n' "$case_id" "$trial" >> "$master"
 
-      # Mirror this run's per-file stream into the master in real time for
-      # the tmux pane. `tail -F -s 0.1` polls every 100ms; lag is invisible
-      # on a screencast.
-      tail -F -s 0.1 -n 0 "$per_run_stream" >> "$master" 2>/dev/null &
-      mirror_pid=$!
-
       prompt=$(cat "$BENCH_DIR/cases/${case_id}/prompt.txt")
       t0=$(now)
-      ( cd "$workdir" && bash "$BENCH_DIR/agents/${agent}.sh" "$prompt" "$per_run_dir" ) \
-        >>"$per_run_dir/stdout.log" 2>>"$per_run_dir/stderr.log" || true
+      # Agent appends straight into the master stream — no mirror, no buffering.
+      ( cd "$workdir" && bash "$BENCH_DIR/agents/${agent}.sh" "$prompt" "$outdir" ) \
+        >>"$outdir/stdout.log" 2>>"$outdir/stderr.log" || true
       t1=$(now)
       wall=$(awk -v a="$t0" -v b="$t1" 'BEGIN{printf "%.2f", b-a}')
 
-      # Let tail drain the last events, then stop it.
-      sleep 0.3
-      kill "$mirror_pid" 2>/dev/null || true
-      wait "$mirror_pid" 2>/dev/null || true
-
       if ( cd "$workdir" && bash "$BENCH_DIR/cases/${case_id}/verify.sh" ) \
-          >>"$per_run_dir/verify.log" 2>&1; then
+          >>"$outdir/verify.log" 2>&1; then
         success=1
         status=PASS
       else
@@ -104,23 +83,13 @@ run_agent() {
         status=FAIL
       fi
 
-      # Same counting rules as bench.sh — filter out Copilot's report_intent
-      # meta-tool so counts are comparable across agent vocabularies.
-      turns=$(grep -cE '"type":"(assistant|assistant\.turn_end)"' "$per_run_stream" 2>/dev/null || true)
-      tools=$(grep -E '"type":"(tool_use|tool\.execution_start)"' "$per_run_stream" 2>/dev/null \
-              | grep -vc '"toolName":"report_intent"' || true)
-      [ -z "$turns" ] && turns=0
-      [ -z "$tools" ] && tools=0
-
       printf '{"type":"_bench_case_end","case":"%s","trial":%d,"status":"%s","wall_s":"%s"}\n' \
         "$case_id" "$trial" "$status" "$wall" >> "$master"
-      echo "t${trial},$case_id,$wall,$status" >> "$RACEDIR/$agent/summary.csv"
+      echo "t${trial},$case_id,$wall,$status" >> "$outdir/summary.csv"
 
-      # Serialise runs.csv writes across the 3 parallel agent workers.
-      (
-        flock 9
-        echo "$trial,$case_id,$agent,$wall,$success,$turns,$tools" >> "$CSV"
-      ) 9>"$CSV.lock"
+      # Each agent writes its own partial CSV — merged after all workers finish
+      # so we don't need cross-process locking (no flock on macOS).
+      echo "$trial,$case_id,$agent,$wall,$success" >> "$partial"
 
       rm -rf "$workdir"
     done
@@ -139,7 +108,81 @@ echo ""
 echo "waiting for all 3 agents to complete ${#cases[@]} case(s) x $TRIALS trial(s)..."
 for pid in "${pids[@]}"; do wait "$pid" || true; done
 
-rm -f "$CSV.lock"
+# --- Post-process: carve master streams into per-run files + build runs.csv ---
+python3 - "$RACEDIR" "${AGENTS[*]}" <<'PY'
+import json, re, sys
+from pathlib import Path
+
+racedir = Path(sys.argv[1])
+agents  = sys.argv[2].split()
+raw_dir = racedir / "raw"
+
+TURN_RE = re.compile(r'"type":"(?:assistant|assistant\.turn_end)"')
+TOOL_RE = re.compile(r'"type":"(?:tool_use|tool\.execution_start)"')
+
+def slice_master(agent):
+    """Split $RACEDIR/<agent>/stream.jsonl into per-run stream.jsonl files
+    using the _bench_trial / _bench_case / _bench_case_end markers."""
+    master = racedir / agent / "stream.jsonl"
+    if not master.exists(): return
+    trial = None
+    case  = None
+    buf   = []
+    def flush():
+        if trial is not None and case is not None:
+            dest = raw_dir / f"t{trial}" / case / agent
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "stream.jsonl").write_text("".join(buf))
+        buf.clear()
+    for line in master.open():
+        if '"_bench_trial"' in line:
+            flush()
+            try: trial = json.loads(line).get("trial")
+            except json.JSONDecodeError: pass
+        elif '"_bench_case"' in line and '"_bench_case_end"' not in line:
+            flush()
+            try:
+                d = json.loads(line)
+                case  = d.get("case")
+                trial = d.get("trial", trial)
+            except json.JSONDecodeError: pass
+        elif '"_bench_case_end"' in line:
+            buf.append(line)
+            flush()
+            case = None
+        else:
+            buf.append(line)
+    flush()
+
+for a in agents:
+    slice_master(a)
+
+# Assemble runs.csv from per-agent partials, enriched with turn/tool counts
+# parsed from the carved per-run streams.
+rows = []
+for a in agents:
+    partial = racedir / a / "runs.partial.csv"
+    if not partial.exists(): continue
+    for line in partial.open():
+        trial, case_id, agent, wall, success = line.strip().split(",")
+        stream = raw_dir / f"t{trial}" / case_id / agent / "stream.jsonl"
+        turns = tools = 0
+        if stream.exists():
+            text = stream.read_text()
+            turns = len(TURN_RE.findall(text))
+            tools = sum(1 for l in text.splitlines()
+                          if TOOL_RE.search(l) and '"toolName":"report_intent"' not in l)
+        rows.append((int(trial), case_id, agent, wall, int(success), turns, tools))
+
+rows.sort(key=lambda r: (r[0], r[1], r[2]))
+with (racedir / "runs.csv").open("w") as f:
+    f.write("trial,case,agent,wall_s,success,turns,tool_calls\n")
+    for r in rows:
+        f.write(",".join(str(x) for x in r) + "\n")
+
+print(f"wrote {racedir/'runs.csv'}  ({len(rows)} rows)")
+print(f"per-run transcripts under {raw_dir}/")
+PY
 
 echo ""
 echo "=== summary ==="
@@ -152,7 +195,3 @@ for agent in "${AGENTS[@]}"; do
       "$agent" "$trial_tag" "$case_id" "$wall" "$status"
   done < "$RACEDIR/$agent/summary.csv"
 done
-
-echo ""
-echo "wrote $CSV"
-echo "per-run transcripts under $RACEDIR/raw/"
